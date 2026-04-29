@@ -79,7 +79,7 @@ const register = async (req: Request, res: Response) => {
     });
     Email.registrationEmail(email, emailVerificationToken);
 
-    ApiResponse.created(res, "User registered successfully", createdUser);
+    ApiResponse.created(res, "User registered successfully", createdUser[0]);
 }
 
 const login = async (req: Request, res: Response) => {

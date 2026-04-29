@@ -25,3 +25,12 @@ export const users = pgTable('users', {
     emailVerificationToken: text('email_verification_token'),
     refreshTokenExpiry: timestamp('refresh_token_expiry'),
 });
+
+export const clients = pgTable("clients",{
+    id: serial('id').primaryKey(),
+    productName: text("product_name").notNull(),
+    accessToken: text("access_token").notNull(),
+    
+    createdAt: timestamp('created_at').defaultNow(),
+    updatedAt: timestamp('updated_at').defaultNow(),
+})
