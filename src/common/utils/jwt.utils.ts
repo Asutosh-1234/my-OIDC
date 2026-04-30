@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import env from "./env.js";
+import crypto from "crypto";
 
 class JwtUtils {
     generateAccessToken = (payload: any) => {
@@ -32,6 +33,14 @@ class JwtUtils {
     verifyEmailVerificationToken = (token: string) => {
         return jwt.verify(token, env.ACCESS_TOKEN!)
     };
+
+    generateRandomId = (length: number = 16) => {
+        return crypto.randomBytes(length).toString("hex");
+    }
+
+    generateAuthCode = (length: number = 32) => {
+        return crypto.randomBytes(length).toString("hex");
+    }
 }   
 
 export default new JwtUtils();

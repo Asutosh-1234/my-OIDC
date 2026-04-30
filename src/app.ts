@@ -3,7 +3,9 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import authRouter from "./modules/auth/auth.route.js";
 import healthCheckRouter from "./modules/helthCheck/helthCheck.route";
+import oidc from "./modules/OIDC/oidc.router"
 import morgan from "morgan";
+import { wellKnown } from "./modules/OIDC/oidc.controller";
 
 const app = express();
 
@@ -15,4 +17,7 @@ app.use(morgan("combined"));
 
 app.use('/api/v1/auth', authRouter);
 app.use("/healthCheck", healthCheckRouter)
+app.use("/api/v1/oidc", oidc)
+app.get("/.well-known/openid-configuration", wellKnown)
+
 export default app;

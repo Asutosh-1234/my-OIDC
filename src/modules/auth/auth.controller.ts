@@ -7,6 +7,14 @@ import JwtUtils from "../../common/utils/jwt.utils.js";
 import bcrypt from "bcrypt";
 import Email from "../../common/utils/email.utils.js";
 
+interface AuthenticatedRequest extends Request {
+    user?: {
+        id: number;
+        email: string;
+        name: string;
+    };
+}
+
 
 function passwordMatch(password: string, hash: string) {
     return bcrypt.compare(password, hash);
@@ -167,8 +175,109 @@ const verifyEmail = async (req: Request, res: Response) => {
     ApiResponse.ok(res, "Email verified successfully", updatedUser);
 };
 
+const logout = async (req: Request, res: Response) => {
+    const { post_logout_redirect_uri } = req.query;
+
+    res.clearCookie("accessToken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+    });
+    res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+    });
+
+    const user = (req as AuthenticatedRequest).user;
+    if (user) {
+        await db.update(users)
+            .set({ refreshToken: null, refreshTokenExpiry: null })
+            .where(eq(users.id, user.id));
+    }
+
+    if (post_logout_redirect_uri) {
+        return res.redirect(String(post_logout_redirect_uri));
+    }
+
+    ApiResponse.ok(res, "Logged out successfully");
+};
+
+const refresh = async (req: Request, res: Response) => {
+    const token = req.cookies?.refreshToken;
+
+    if (!token) {
+        throw ApiError.unauthorizedError(res, "Refresh token is missing");
+    }
+
+    const decoded = JwtUtils.verifyRefreshToken(token) as { email: string; name: string; id: number };
+
+    const user = (await db.select().from(users).where(eq(users.id, decoded.id)))[0];
+    if (!user) {
+        throw ApiError.unauthorizedError(res, "User not found");
+    }
+
+    if (!user.refreshTokenExpiry || new Date() > user.refreshTokenExpiry) {
+        throw ApiError.unauthorizedError(res, "Refresh token expired");
+    }
+
+    const isValid = await bcrypt.compare(token, user.refreshToken!);
+    if (!isValid) {
+        throw ApiError.unauthorizedError(res, "Invalid refresh token");
+    }
+
+    const newAccessToken = JwtUtils.generateAccessToken({ email: user.email, name: user.name, id: user.id });
+    const newRefreshToken = JwtUtils.generateRefreshToken({ email: user.email, name: user.name, id: user.id });
+    const hashedRefreshToken = await bcrypt.hash(newRefreshToken, 10);
+
+    await db.update(users).set({
+        refreshToken: hashedRefreshToken,
+        refreshTokenExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    }).where(eq(users.id, user.id));
+
+    res.cookie("accessToken", newAccessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    ApiResponse.ok(res, "Token refreshed successfully");
+};
+
+const userinfo = async (req: AuthenticatedRequest, res: Response) => {
+    const user = req.user;
+    if (!user) {
+        throw ApiError.unauthorizedError(res, "Unauthorized");
+    }
+
+    const userRecord = (await db.select().from(users).where(eq(users.id, user.id)))[0];
+    if (!userRecord) {
+        throw ApiError.notFoundError(res, "User not found");
+    }
+
+    ApiResponse.ok(res, "User info", {
+        sub: String(userRecord.id),
+        name: userRecord.name,
+        email: userRecord.email,
+        email_verified: userRecord.isEmailVerified === "true",
+        createdAt: userRecord.createdAt,
+        updatedAt: userRecord.updatedAt,
+    });
+};
+
+
 export {
     register,
     login,
-    verifyEmail
-}
+    verifyEmail,
+    logout,
+    refresh,
+    userinfo,
+};

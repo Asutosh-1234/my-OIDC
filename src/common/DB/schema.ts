@@ -28,8 +28,11 @@ export const users = pgTable('users', {
 
 export const clients = pgTable("clients",{
     id: serial('id').primaryKey(),
+    clientId: text("client_id").notNull(),
+    clientSecret: text("client_secret").notNull(),
     productName: text("product_name").notNull(),
-    accessToken: text("access_token").notNull(),
+    
+    userId: integer("user_id").notNull().references(() => users.id),
     
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
