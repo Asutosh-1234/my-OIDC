@@ -31,9 +31,21 @@ export const clients = pgTable("clients",{
     clientId: text("client_id").notNull(),
     clientSecret: text("client_secret").notNull(),
     productName: text("product_name").notNull(),
-    
+
+    redirectUri: text("redirect_uri").notNull(),
+
     userId: integer("user_id").notNull().references(() => users.id),
     
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),
 })
+
+export const authCodes = pgTable("auth_codes", {
+    id: serial("id").primaryKey(),
+    code: text("code").notNull(),
+    clientId: text("client_id").notNull(),
+    userId: integer("user_id").notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").notNull(),
+});
